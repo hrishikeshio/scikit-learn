@@ -13,13 +13,13 @@ from sklearn.utils.testing import assert_raises
 from sklearn.utils.testing import assert_true
 
 from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics.pairwise import linear_kernel
 from sklearn.metrics.pairwise import chi2_kernel, additive_chi2_kernel
 from sklearn.metrics.pairwise import polynomial_kernel
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.metrics.pairwise import sigmoid_kernel
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.metrics.pairwise import pairwise_kernel_functions
 from sklearn.metrics.pairwise import check_pairwise_arrays
@@ -45,6 +45,13 @@ def test_pairwise_distances():
     Y_tuples = tuple([tuple([v for v in row]) for row in Y])
     S2 = pairwise_distances(X_tuples, Y_tuples, metric="euclidean")
     assert_array_almost_equal(S, S2)
+    # Test with sparse matrices
+    X_sparse = csr_matrix(X)
+    Y_sparse = csr_matrix(Y)
+    S = pairwise_distances(X_sparse, Y_sparse, metric="euclidean")
+    S2 = euclidean_distances(X_sparse, Y_sparse)
+    assert_array_almost_equal(S, S2)
+    
     # "cityblock" uses sklearn metric, cityblock (function) is scipy.spatial.
     S = pairwise_distances(X, metric="cityblock")
     S2 = pairwise_distances(X, metric=cityblock)
@@ -60,22 +67,18 @@ def test_pairwise_distances():
     # manhattan does not support sparse matrices atm.
     assert_raises(ValueError, pairwise_distances, csr_matrix(X),
                   metric="manhattan")
+    
     # Test cosine as a string metric versus cosine callable
     S = pairwise_distances(X, Y, metric="cosine")
     S2 = pairwise_distances(X, Y, metric=cosine)
     assert_equal(S.shape[0], X.shape[0])
     assert_equal(S.shape[1], Y.shape[0])
     assert_array_almost_equal(S, S2)
+    
     # Tests that precomputed metric returns pointer to, and not copy of, X.
     S = np.dot(X, X.T)
     S2 = pairwise_distances(S, metric="precomputed")
     assert_true(S is S2)
-    # Test with sparse X and Y
-    X_sparse = csr_matrix(X)
-    Y_sparse = csr_matrix(Y)
-    S = pairwise_distances(X_sparse, Y_sparse, metric="euclidean")
-    S2 = euclidean_distances(X_sparse, Y_sparse)
-    assert_array_almost_equal(S, S2)
     # Test with scipy.spatial.distance metric, with a kwd
     kwds = {"p": 2.0}
     S = pairwise_distances(X, Y, metric="minkowski", **kwds)
@@ -90,72 +93,6 @@ def test_pairwise_distances():
     assert_raises(TypeError, pairwise_distances, X_sparse, metric="minkowski")
     assert_raises(TypeError, pairwise_distances, X, Y_sparse,
                   metric="minkowski")
-
-
-def test_pairwise_parallel():
-    rng = np.random.RandomState(0)
-    for func in (np.array, csr_matrix):
-        X = func(rng.random_sample((5, 4)))
-        Y = func(rng.random_sample((3, 4)))
-
-        S = euclidean_distances(X)
-        S2 = _parallel_pairwise(X, None, euclidean_distances, n_jobs=-1)
-        assert_array_almost_equal(S, S2)
-
-        S = euclidean_distances(X, Y)
-        S2 = _parallel_pairwise(X, Y, euclidean_distances, n_jobs=-1)
-        assert_array_almost_equal(S, S2)
-
-
-def test_pairwise_kernels():
-    """ Test the pairwise_kernels helper function. """
-
-    def callable_rbf_kernel(x, y, **kwds):
-        """ Callable version of pairwise.rbf_kernel. """
-        K = rbf_kernel(np.atleast_2d(x), np.atleast_2d(y), **kwds)
-        return K
-
-    rng = np.random.RandomState(0)
-    X = rng.random_sample((5, 4))
-    Y = rng.random_sample((2, 4))
-    # Test with all metrics that should be in pairwise_kernel_functions.
-    test_metrics = ["rbf", "sigmoid", "polynomial", "linear", "chi2",
-                    "additive_chi2"]
-    for metric in test_metrics:
-        function = pairwise_kernel_functions[metric]
-        # Test with Y=None
-        K1 = pairwise_kernels(X, metric=metric)
-        K2 = function(X)
-        assert_array_almost_equal(K1, K2)
-        # Test with Y=Y
-        K1 = pairwise_kernels(X, Y=Y, metric=metric)
-        K2 = function(X, Y=Y)
-        assert_array_almost_equal(K1, K2)
-        # Test with tuples as X and Y
-        X_tuples = tuple([tuple([v for v in row]) for row in X])
-        Y_tuples = tuple([tuple([v for v in row]) for row in Y])
-        K2 = pairwise_kernels(X_tuples, Y_tuples, metric=metric)
-        assert_array_almost_equal(K1, K2)
-        if metric in ["chi2", "additive_chi2"]:
-            # these don't support sparse matrices yet
-            continue
-        # Test with sparse X and Y
-        X_sparse = csr_matrix(X)
-        Y_sparse = csr_matrix(Y)
-        K1 = pairwise_kernels(X_sparse, Y=Y_sparse, metric=metric)
-        assert_array_almost_equal(K1, K2)
-    # Test with a callable function, with given keywords.
-    metric = callable_rbf_kernel
-    kwds = {}
-    kwds['gamma'] = 0.1
-    K1 = pairwise_kernels(X, Y=Y, metric=metric, **kwds)
-    K2 = rbf_kernel(X, Y=Y, **kwds)
-    assert_array_almost_equal(K1, K2)
-
-    # callable function, X=Y
-    K1 = pairwise_kernels(X, Y=X, metric=metric, **kwds)
-    K2 = rbf_kernel(X, Y=X, **kwds)
-    assert_array_almost_equal(K1, K2)
 
 
 def test_pairwise_kernels_filter_param():
