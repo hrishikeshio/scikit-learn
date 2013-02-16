@@ -550,10 +550,25 @@ def test_classifiers_classes():
         assert_array_equal(np.unique(y), np.unique(y_pred))
         assert_greater(accuracy_score(y, y_pred), 0.78,
                        "accuracy of %s not greater than 0.78" % str(Clf))
+        #try:
         assert_array_equal(
             clf.classes_, classes,
-            "Unexpected classes_ attribute for %r" % clf)
-
+            "Unexpected classes_ attribute for %s" % str(Clf))
+        if name in ["AdaBoostClassifier"]:
+            y_str = y.astype(np.str)
+            classes = np.unique(y_str)
+            clf.fit(X, y_str)
+            y_pred = clf.predict(X)
+            # training set performance
+            assert_array_equal(np.unique(y_str), np.unique(y_pred))
+            assert_greater(accuracy_score(y_str, y_pred), 0.78,
+                           "accuracy of %s not greater than 0.78" % str(Clf))
+            #try:
+            assert_array_equal(
+                clf.classes_, classes,
+                "Unexpected classes_ attribute for %r" % clf)
+            #except:
+             #   print("array not equal", clf)
 
 def test_regressors_int():
     # test if regressors can cope with integer labels (by converting them to

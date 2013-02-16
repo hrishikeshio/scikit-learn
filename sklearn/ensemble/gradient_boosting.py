@@ -36,7 +36,7 @@ from ..base import ClassifierMixin
 from ..base import RegressorMixin
 from ..utils import check_random_state, array2d, check_arrays
 from ..utils.extmath import logsumexp
-
+from ..utils.fixes import unique
 from ..tree.tree import DecisionTreeRegressor
 from ..tree._tree import _random_sample_mask
 from ..tree._tree import DTYPE, TREE_LEAF
@@ -841,10 +841,11 @@ class GradientBoostingClassifier(BaseGradientBoosting, ClassifierMixin):
         -------
         self : object
             Returns self.
-        """
-        self.classes_ = np.unique(y)
+        hrishi"""
+        #self.classes_ = np.unique(y)
+        self.classes_, y = unique(y, return_inverse=True)
         self.n_classes_ = len(self.classes_)
-        y = np.searchsorted(self.classes_, y)
+        #y = np.searchsorted(self.classes_, y)
 
         return super(GradientBoostingClassifier, self).fit(X, y)
 
@@ -910,6 +911,7 @@ class GradientBoostingClassifier(BaseGradientBoosting, ClassifierMixin):
         """
         proba = self.predict_proba(X)
         return self.classes_.take(np.argmax(proba, axis=1), axis=0)
+
 
     def staged_predict(self, X):
         """Predict class probabilities at each stage for X.

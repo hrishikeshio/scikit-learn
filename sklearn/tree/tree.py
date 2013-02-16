@@ -22,7 +22,7 @@ from ..externals import six
 from ..feature_selection.selector_mixin import SelectorMixin
 from ..utils import array2d, check_random_state
 from ..utils.validation import check_arrays
-
+from ..utils.fixes import unique
 from . import _tree
 
 
