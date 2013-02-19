@@ -12,11 +12,13 @@ import warnings
 
 from ..base import BaseEstimator, ClusterMixin
 from ..utils import as_float_array
+from ..utils import deprecated
 from ..metrics import euclidean_distances
 
 
-def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
-                         damping=0.5, copy=True, verbose=False):
+def affinity_propagation(S, preference=None, p=None, convergence_iter=15,
+                         convit=None, max_iter=200, damping=0.5, copy=True,
+                         verbose=False):
     """Perform Affinity Propagation Clustering of data
 
     Parameters
@@ -57,8 +59,8 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
     cluster_centers_indices: array [n_clusters]
         index of clusters centers
 
-    labels : array [n_samples]
-        cluster labels for each point
+    classes : array [n_samples]
+        cluster classes for each point
 
     Notes
     -----
@@ -70,10 +72,21 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
     Between Data Points", Science Feb. 2007
     """
     S = as_float_array(S, copy=copy)
+    if convit is not None:
+        warnings.warn("``convit`` is deprecated and will be removed in"
+                      "version 0.14. Use ``convergence_iter`` instead",
+                      DeprecationWarning)
+        convergence_iter = convit
+
     n_samples = S.shape[0]
 
     if S.shape[0] != S.shape[1]:
         raise ValueError("S must be a square array (shape=%s)" % repr(S.shape))
+
+    if not p is None:
+        warnings.warn("p is deprecated and will be removed in version 0.14."
+                      "Use ``preference`` instead.", DeprecationWarning)
+        preference = p
 
     if preference is None:
         preference = np.median(S)
@@ -139,11 +152,11 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
                            != n_samples)
             if (not unconverged and (K > 0)) or (it == max_iter):
                 if verbose:
-                    print("Converged after %d iterations." % it)
+                    print "Converged after %d iterations." % it
                 break
     else:
         if verbose:
-            print("Did not converge")
+            print "Did not converge"
 
     I = np.where(np.diag(A + R) > 0)[0]
     K = I.size  # Identify exemplars
@@ -159,16 +172,16 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
 
         c = np.argmax(S[:, I], axis=1)
         c[I] = np.arange(K)
-        labels = I[c]
-        # Reduce labels to a sorted, gapless, list
-        cluster_centers_indices = np.unique(labels)
-        labels = np.searchsorted(cluster_centers_indices, labels)
+        classes = I[c]
+        # Reduce classes to a sorted, gapless, list
+        cluster_centers_indices = np.unique(classes)
+        classes = np.searchsorted(cluster_centers_indices, classes)
     else:
-        labels = np.empty((n_samples, 1))
+        classes = np.empty((n_samples, 1))
         cluster_centers_indices = None
-        labels.fill(np.nan)
+        classes.fill(np.nan)
 
-    return cluster_centers_indices, labels
+    return cluster_centers_indices, classes
 
 
 ###############################################################################
@@ -212,8 +225,8 @@ class AffinityPropagation(BaseEstimator, ClusterMixin):
     `cluster_centers_indices_` : array, [n_clusters]
         Indices of cluster centers
 
-    `labels_` : array, [n_samples]
-        Labels of each point
+    `classes_` : array, [n_samples]
+        classes of each point
 
     `affinity_matrix_` : array-like, [n_samples, n_samples]
         Stores the affinity matrix used in ``fit``.
@@ -233,14 +246,25 @@ class AffinityPropagation(BaseEstimator, ClusterMixin):
     """
 
     def __init__(self, damping=.5, max_iter=200, convergence_iter=15,
-                 copy=True, preference=None, affinity='euclidean',
-                 verbose=False):
+                 convit=None, copy=True, preference=None, p=None,
+                 affinity='euclidean', verbose=False):
+
+        if convit is not None:
+            warnings.warn("``convit`` is deprectaed and will be removed in "
+                          "version 0.14. Use ``convergence_iter`` "
+                          "instead", DeprecationWarning)
+            convergence_iter = convit
 
         self.damping = damping
         self.max_iter = max_iter
         self.convergence_iter = convergence_iter
         self.copy = copy
         self.verbose = verbose
+        if not p is None:
+            warnings.warn("p is deprecated and will be removed in version 0.14"
+                          ". Use ``preference`` instead.", DeprecationWarning)
+            preference = p
+
         self.preference = preference
         self.affinity = affinity
 
@@ -248,6 +272,11 @@ class AffinityPropagation(BaseEstimator, ClusterMixin):
     def _pairwise(self):
         return self.affinity is "precomputed"
 
+    @property
+    @deprecated("Attribute labels_ is deprecated and "
+        "will be removed in 0.15. Use 'classes_' instead")
+    def labels_(self):
+        return self.classes_
     def fit(self, X):
         """ Create affinity matrix from negative euclidean distances, then
         apply affinity propagation clustering.
@@ -274,7 +303,7 @@ class AffinityPropagation(BaseEstimator, ClusterMixin):
                              "'euclidean'. Got %s instead"
                              % str(self.affinity))
 
-        self.cluster_centers_indices_, self.labels_ = affinity_propagation(
+        self.cluster_centers_indices_, self.classes_ = affinity_propagation(
             self.affinity_matrix_, self.preference, max_iter=self.max_iter,
             convergence_iter=self.convergence_iter, damping=self.damping,
             copy=self.copy, verbose=self.verbose)
