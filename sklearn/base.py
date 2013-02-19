@@ -260,7 +260,7 @@ class ClassifierMixin(object):
     """Mixin class for all classifiers in scikit-learn"""
 
     def score(self, X, y):
-        """Returns the mean accuracy on the given test data and labels.
+        """Returns the mean accuracy on the given test data and classes.
 
         Parameters
         ----------
@@ -268,7 +268,7 @@ class ClassifierMixin(object):
             Training set.
 
         y : array-like, shape = [n_samples]
-            Labels for X.
+            Classes for X.
 
         Returns
         -------
@@ -312,7 +312,7 @@ class RegressorMixin(object):
 class ClusterMixin(object):
     """Mixin class for all cluster estimators in scikit-learn"""
     def fit_predict(self, X, y=None):
-        """Performs clustering on X and returns cluster labels.
+        """Performs clustering on X and returns cluster classes.
 
         Parameters
         ----------
@@ -322,12 +322,12 @@ class ClusterMixin(object):
         Returns
         -------
         y : ndarray, shape (n_samples,)
-            cluster labels
+            cluster classes
         """
         # non-optimized default implementation; override when a better
         # method is possible for a given clustering algorithm
         self.fit(X)
-        return self.labels_
+        return self.classes_
 
 
 ###############################################################################

@@ -13,7 +13,7 @@ import numpy as np
 from ..base import BaseEstimator, ClusterMixin
 from ..metrics import pairwise_distances
 from ..utils import check_random_state
-
+from ..utils import deprecated
 
 def dbscan(X, eps=0.5, min_samples=5, metric='euclidean',
            random_state=None):
@@ -46,8 +46,8 @@ def dbscan(X, eps=0.5, min_samples=5, metric='euclidean',
     core_samples: array [n_core_samples]
         Indices of core samples.
 
-    labels : array [n_samples]
-        Cluster labels for each point.  Noisy samples are given the label -1.
+    classes : array [n_samples]
+        Cluster classes for each point.  Noisy samples are given the class -1.
 
     Notes
     -----
@@ -72,19 +72,19 @@ def dbscan(X, eps=0.5, min_samples=5, metric='euclidean',
     # neighborhood of point i. While True, its useless information)
     neighborhoods = [np.where(x <= eps)[0] for x in D]
     # Initially, all samples are noise.
-    labels = -np.ones(n)
+    classes = -np.ones(n)
     # A list of all core samples found.
     core_samples = []
-    # label_num is the label given to the new cluster
-    label_num = 0
+    # class_num is the class given to the new cluster
+    class_num = 0
     # Look at all samples and determine if they are core.
     # If they are then build a new cluster from them.
     for index in index_order:
-        if labels[index] != -1 or len(neighborhoods[index]) < min_samples:
+        if classes[index] != -1 or len(neighborhoods[index]) < min_samples:
             # This point is already classified, or not enough for a core point.
             continue
         core_samples.append(index)
-        labels[index] = label_num
+        classes[index] = class_num
         # candidates for new core samples in the cluster.
         candidates = [index]
         while len(candidates) > 0:
@@ -92,9 +92,9 @@ def dbscan(X, eps=0.5, min_samples=5, metric='euclidean',
             # A candidate is a core point in the current cluster that has
             # not yet been used to expand the current cluster.
             for c in candidates:
-                noise = np.where(labels[neighborhoods[c]] == -1)[0]
+                noise = np.where(classes[neighborhoods[c]] == -1)[0]
                 noise = neighborhoods[c][noise]
-                labels[noise] = label_num
+                classes[noise] = class_num
                 for neighbor in noise:
                     # check if its a core point as well
                     if len(neighborhoods[neighbor]) >= min_samples:
@@ -105,8 +105,8 @@ def dbscan(X, eps=0.5, min_samples=5, metric='euclidean',
             candidates = new_candidates
         # Current cluster finished.
         # Next core point found will start a new cluster.
-        label_num += 1
-    return core_samples, labels
+        class_num += 1
+    return core_samples, classes
 
 
 class DBSCAN(BaseEstimator, ClusterMixin):
@@ -142,9 +142,9 @@ class DBSCAN(BaseEstimator, ClusterMixin):
     `components_` : array, shape = [n_core_samples, n_features]
         Copy of each core sample found by training.
 
-    `labels_` : array, shape = [n_samples]
-        Cluster labels for each point in the dataset given to fit().
-        Noisy samples are given the label -1.
+    `classes_` : array, shape = [n_samples]
+        Cluster classes for each point in the dataset given to fit().
+        Noisy samples are given the class -1.
 
     Notes
     -----
@@ -164,7 +164,13 @@ class DBSCAN(BaseEstimator, ClusterMixin):
         self.min_samples = min_samples
         self.metric = metric
         self.random_state = random_state
-
+    
+    @property
+    @deprecated("Attribute labels_ is deprecated and "
+        "will be removed in 0.15. Use 'classes_' instead")
+    def labels_(self):
+        return self.classes_
+    
     def fit(self, X, **params):
         """Perform DBSCAN clustering from vector array or distance matrix.
 
@@ -182,7 +188,7 @@ class DBSCAN(BaseEstimator, ClusterMixin):
                           'deprecated and will be removed in 0.14',
                           DeprecationWarning, stacklevel=2)
             self.set_params(**params)
-        self.core_sample_indices_, self.labels_ = dbscan(X,
+        self.core_sample_indices_, self.classes_ = dbscan(X,
                                                          **self.get_params())
         self.components_ = X[self.core_sample_indices_].copy()
         return self
